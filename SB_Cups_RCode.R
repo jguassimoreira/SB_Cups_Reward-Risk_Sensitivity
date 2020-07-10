@@ -108,50 +108,30 @@ mod3 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile
 mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile +  (1+EV+SD|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 #########
-## Plot results from part of the analysis strategy
+## Plot results from this part of the analysis strategy
 #########
 
+## Start with model implied probabilities in a Cleveland plot (i.e., dotchart) broken down by trial type, EV, and group 
+posEV = c(rep(linspace(.8, 5, 5), each = 2)) #positive EVs
+negEV = c(rep(linspace(-.8, -5, 5), each = 2)) #negative EVs
+age=0 #create the plot for someone at the mean age
+grpPI = c(rep(c(1,0), 5)) #create a vector for PI and comparison individuals
 
-##Make some plots
-#Model implied probabilities
-posEV = c(rep(linspace(.8, 5, 5), each = 2))
-negEV = c(rep(linspace(-.8, -5, 5), each = 2))
-age=0
-#loAge = -(sd(allDat$Age) - (.5*sd(allDat$Age))); meanAge = 0; hiAge = (sd(allDat$Age) + (.5*sd(allDat$Age)))
-#age = c(rep(c(loAge, loAge, meanAge, meanAge, hiAge, hiAge), 5))
-grpPI = c(rep(c(1,0), 5))
+#create model implied logits -- these coefficients are taken from model 3 -- effect of gender is averaged, and WASI-II score is assumed to be zero (i.e., at grand mean)
+posLogits = 0.751 + (0.674*posEV) + (0.141*0) + (-1.290*1) + (-0.656*grpPI) + (-0.043*age) + (0*-0.005) + (-.335*posEV*grpPI) + (-.077*0*grpPI) + (1.266*1*grpPI) + 0.0993085 #this last bit here is the avg of gender effect
+posProb = exp(posLogits) / (1 + exp(posLogits)) #convert to probabilities
 
-posLogits = 0.751 + (0.674*posEV) + (0.141*0) + (-1.290*1) + (-0.656*grpPI) + (-0.043*age) + (0*-0.005) + (-.335*posEV*grpPI) + (-.077*0*grpPI) + (1.266*1*grpPI) + 0.0993085 #this last bit here is to take avg of gender effect
-posProb = exp(posLogits) / (1 + exp(posLogits))
+#create model implied logits -- these coefficients are taken from model 3 -- effect of gender is averaged, and WASI-II score is assumed to be zero (i.e., at grand mean)
+negLogits = 0.751 + (0.674*negEV) + (0.141*0) + (-1.290*0) + (-0.656*grpPI) + (-0.043*age) + (0*-0.005) + (-.335*negEV*grpPI) + (-.077*0*grpPI) + (1.266*0*grpPI) + 0.0993085 #this last bit here is the avg of gender effect
+negProb = exp(negLogits) / (1 + exp(negLogits)) #convert to probabilities
 
-negLogits = 0.751 + (0.674*negEV) + (0.141*0) + (-1.290*0) + (-0.656*grpPI) + (-0.043*age) + (0*-0.005) + (-.335*negEV*grpPI) + (-.077*0*grpPI) + (1.266*0*grpPI) + 0.0993085 #this last bit here is to take avg of gender effect
-negProb = exp(negLogits) / (1 + exp(negLogits))
+posGroups = (rep(c("EV: +0.80", "EV: +1.85", "EV: +2.90", "EV: +3.95", "EV: +5.00"), each = 2)) #Define positive EVs (these are somewhat arbitrary, but I wanted evenly spaced bins from .8 to 5)
+negGroups = (rep(c("EV: -0.80", "EV: -1.85", "EV: -2.90", "EV: -3.95", "EV: -5.00"), each = 2)) #Define negative EVs
+labs = (rep(c("PI", "Comp"), 5)) #labels for the plot - PI : previously institutionalized, comp : comparison
 
-posGroups = (rep(c("EV: +0.80", "EV: +1.85", "EV: +2.90", "EV: +3.95", "EV: +5.00"), each = 2))
-negGroups = (rep(c("EV: -0.80", "EV: -1.85", "EV: -2.90", "EV: -3.95", "EV: -5.00"), each = 2))
-labs = (rep(c("PI", "Comp"), 5))
-
-#my_cols = wes_palette("FantasticFox1", n = 5) #c("gray", "#E69F00", "#56B4E9", "purple", "green")
-#my_cols = brewer.pal(n = 8, name = "Dark2")[c(1,2,3,4,8)]
-
-
-#png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "posEV_dotchart.png"), height = 5, width = 5, units = "in", res = 750)
-png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "posEV_dotchart.png"), height = 5, width = 5, units = "in", res = 750)
-dcp = dotchart(posProb, labels = labs, 
-         groups = as.factor(posGroups), gcolor = 'black',
-         color = 'black',
-         cex = 1, cex.lab = 1.25, pch = 20, xlab = "Probability of Risky Decision", main = "Gain Trials")
-dev.off()
-
-png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "negEV_dotchart.png"), height = 5, width = 5, units = "in", res = 750)
-dcn = dotchart(negProb, labels = labs, 
-         groups = as.factor(negGroups), gcolor = 'black',
-         color = 'black',
-         cex = 1, cex.lab = 1.25, pch = 20, xlab = "Probability of Risky Decision", main = "Loss Trials")
-dev.off()
-
+## Save the plots
 png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "NHB", "bothEV_dotchart.png"), height = 7, width = 12.5, units = "in", res = 750)
-par(mfrow=c(1,2))
+par(mfrow=c(1,2)) #save the plots side by side
 dotchart(posProb, labels = labs, 
          groups = as.factor(posGroups), gcolor = 'black',
          color = 'black',
@@ -163,7 +143,7 @@ dotchart(negProb, labels = labs,
 dev.off()
 
 png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "NHB", "bothEV_dotchart_stacked.png"), height = 13, width = 7.5, units = "in", res = 750)
-par(mfrow=c(2,1))
+par(mfrow=c(2,1)) #save the plots stacked (what is currently show in the manuscript as of 07.09.2020)
 dotchart(posProb, labels = labs, 
          groups = as.factor(posGroups), gcolor = 'black',
          color = 'black',
@@ -174,41 +154,25 @@ dotchart(negProb, labels = labs,
          cex = 1, cex.lab = 1.25, pch = 20, xlab = "Probability of Risky Decision", main = "Loss Trials")
 dev.off()
 
-#dev.off()
-#dotchart(posProb, labels = labs, 
-#         groups = as.factor(posGroups), gcolor = my_cols,
-#         color = my_cols[as.factor(posGroups)],
-#         cex = .5, cex.lab = 1.2, pch = 19, xlab = "Probability of Risky Decision")
-#dev.off()
-
-#png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "negEV_dotchart.png"), height = 5, width = 5, units = "in", res = 750)
-#dotchart(negProb, labels = labs, 
-#         groups = as.factor(negGroups), gcolor = my_cols,
-#         color = my_cols[as.factor(posGroups)],
-#         cex = .5, cex.lab = 1.2, pch = 19, xlab = "Probability of Risky Decision")
-#dev.off()
 
 
+## Now we're going to plot fixed effects and random effects of reward on prob(risky choice) by group (i.e., visualize the reward x group interaction)
 
-#Break down EV by group
+ranefEV = aggregate(. ~ ID, data = allDat, mean)[,c("ID", "PI")] #From long file, get everyone's IDs and group status in wide format (i.e., 1 row with sub id and group status) 
+ranefEV$ranef = ranef(mod3)$ID[,2] #get random effects from model 3
+ranefEV$b = ranefEV$ranef + 0.674091 + (-0.335033*ranefEV$PI) #add the random effect to the fixed effect of reward and the adjustment for PI individuals to recover each subject specific association between reward and p(risky choice)
+#the above are in logits!
 
-ranefEV = aggregate(. ~ ID, data = allDat, mean)[,c("ID", "PI")]
-ranefEV$ranef = ranef(mod3)$ID[,2]
-ranefEV$b = ranefEV$ranef + 0.674091 + (-0.335033*ranefEV$PI)
-
-#fixefEV = data.frame(EV = rep(sort(unique(allDat$EV))[-c(2,6,12,16)], 2),
-#                     logit = c(sort(unique(allDat$EV))[-c(2,6,12,16)]*0.674091, sort(unique(allDat$EV))[-c(2,6,12,16)]*(0.672888-0.335033)),
-#                     Group = rep(c("Comp", "PI"), each = 14))
-
-fixefEV = data.frame(EV = rep(seq(-5,5,.05), 2),
+fixefEV = data.frame(EV = rep(seq(-5,5,.05), 2), #create a dataframe with fixed effects for plotting
                      logit = c(rep(seq(-5,5,.05), 2)*0.674091, rep(seq(-5,5,.05), 2)*(0.672888-0.335033)),
-                     Group = rep(c("Comp", "PI"), each = 402))
+                     Group = rep(c("Comp", "PI"), each = 402)) 
 
-fixefEV$prob = exp(fixefEV$logit) / (1 + exp(fixefEV$logit))
+fixefEV$prob = exp(fixefEV$logit) / (1 + exp(fixefEV$logit)) #create a column that has probabilities (in addition to the logits)
 
 
-se = 0.050996 * 2 #SE * Z value
+se = 0.050996 * 2 #SE * Z value - standard error
 
+#plot 1 fixed effect of reward on log odds(risky choice)
 p1 = ggplot() + geom_line(aes(y = logit, x = EV, colour = Group), size=1.5,
                            data = fixefEV, stat="identity") +
   theme_bw() +
@@ -217,10 +181,8 @@ p1 = ggplot() + geom_line(aes(y = logit, x = EV, colour = Group), size=1.5,
   geom_ribbon(aes(x = fixefEV$EV, ymin=fixefEV$logit-se, ymax=fixefEV$logit+se, fill=fixefEV$Group),alpha=0.3, show.legend=F) +
   scale_fill_manual(values=brewer.pal(n = 8, name = "Dark2")[c(3,5)]) +
   ylim(-4,4)
-png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "fixed_effect_ev.png"), height = 4, width = 5.5, units = "in", res = 600)
-p1
-dev.off()
 
+#plot 2 fixed effect of reward on p(risky choice)
 p2 = ggplot() + geom_line(aes(y = prob, x = EV, colour = Group), size=1.5,
                           data = fixefEV, stat="identity") +
   theme_bw() +
@@ -229,17 +191,16 @@ p2 = ggplot() + geom_line(aes(y = prob, x = EV, colour = Group), size=1.5,
   #geom_ribbon(aes(x = fixefEV$EV, ymin=fixefEV$prob-seProb, ymax=fixefEV$prob+seProb, fill=as.factor(fixefEV$Group)),alpha=0.3) +
   scale_fill_manual(values=brewer.pal(n = 8, name = "Dark2")[c(3,5)])
 
+#Ok here's my dirty secret -- I wasn't sure how to get many individual lines in one plot, and was too tired/impatient to dig deeper, so I went mega-doofus and used a loop with ggplot. Don't tell anyone, else I'll be exiled
+#plot individual random effects in logits
 p1loop = ggplot() + geom_line(aes(y = logit, x = EV, colour = Group), size=1.5,
                              data = fixefEV, stat="identity") +
   theme_bw() +
   labs(y = "Log Odds of Risky Decision") +
   scale_color_manual(values=brewer.pal(n = 8, name = "Dark2")[c(3,5)]) +
   ylim(-4,4)
-#p2 = p1 + geom_abline(aes(slope = ranefEV$b[1], intercept = 0)) + xlim(-5,5)
-#p3 = p1 + geom_segment(aes(x = -5, xend = 5, y = ranefEV$b[1]*-5, yend = ranefEV$b[1]*5))
 
-
-for (r in 1:dim(ranefEV)[1]) { #
+for (r in 1:dim(ranefEV)[1]) { 
   
   print(r)
   if (ranefEV$PI[r] == 0 ) {
@@ -256,17 +217,15 @@ for (r in 1:dim(ranefEV)[1]) { #
   
 }
 
-
+#Plot individual random effects in probability metric
 p2loop = ggplot() + geom_line(aes(y = prob, x = EV, colour = Group), size=1.5,
                               data = fixefEV, stat="identity") +
   theme_bw() +
   labs(y = "Probability of Risky Decision") +
   scale_color_manual(values=brewer.pal(n = 8, name = "Dark2")[c(3,5)])
-#p2 = p1 + geom_abline(aes(slope = ranefEV$b[1], intercept = 0)) + xlim(-5,5)
-#p3 = p1 + geom_segment(aes(x = -5, xend = 5, y = ranefEV$b[1]*-5, yend = ranefEV$b[1]*5))
 
 
-for (r in 1:dim(ranefEV)[1]) { #
+for (r in 1:dim(ranefEV)[1]) { 
   
   print(r)
   if (ranefEV$PI[r] == 0 ) {
@@ -282,59 +241,38 @@ for (r in 1:dim(ranefEV)[1]) { #
   subProb = seq(-5,5,.05) * ranefEV$b[r]
   subProb = exp(subProb) / (1+exp(subProb))
   
-  p2loop = p2loop + geom_line(aes_string(x=seq(-5,5,.05), y=subProb), color = rcol)#geom_segment(aes(x = -5, xend = 5, y = ranefEV$b[r]*-5, yend = ranefEV$b[r]*5), color = rcol)
+  p2loop = p2loop + geom_line(aes_string(x=seq(-5,5,.05), y=subProb), color = rcol)
   
 }
 
+#save all of these plots in 1 figure
 grid.arrange(p1, p1loop, p2, p2loop, nrow = 2, ncol=2)
 t = arrangeGrob(p1, p1loop, p2, p2loop, nrow = 2, ncol=2)
 ggsave(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "NHB", "ran_fix_logit_prob.png"), t, dpi = 900, width = 10, height = 6.67, units = c("in"))
 
-png(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "CD_SpecialIssue", "random_effect_ev.png"), height = 4, width = 5, units = "in", res = 600)
-ploop
-dev.off()
+#########
+## Part 1 of analysis strategy -- computational modeling
+#########
 
-##Plot EV/SD effects across group seperately for gain and loss
+## Start with prospect theory (PT)
+## The way this workflow is organized is that starting values for likelihood function optimization are determined via grid search, and then they are piped into optim
+## Because starting values can sometimes affect the optimization routine, I'm going to use three different starting values
+## The way I did this was to run the grid search 3 times, defining the grid differently each time and ending up with a different value
+## I could have chosen the values randomly, but I figured repeating the grid search three times was more often going to leave me with starting values that were in the correct neighborhood
 
-#gain
-pEV_gain = ggplot() + geom_line(aes_string(x = -5:5, y = (1.226671+(c(-5:5)*0.878650))), color = brewer.pal(n = 8, name = "Set2")[3], size=1.5) +
-  geom_line(aes_string(x = -5:5, y = ((1.226671-.169318)+(c(-5:5)*(.878650-.516078)))), color = brewer.pal(n = 8, name = "Set2")[5], size=1.5) +
-  theme_bw() +
-  labs(y = "Log Odds of Risky Decision") +
-  ylim(-6,6)
-
-pEV_loss = ggplot() + geom_line(aes_string(x = -5:5, y = (-.731316+(c(-5:5)*0.748608))), color = brewer.pal(n = 8, name = "Dark2")[3], size=1.5) +
-  geom_line(aes_string(x = -5:5, y = ((-.731316+.148945)+(c(-5:5)*(.748608-.522223)))), color = brewer.pal(n = 8, name = "Dark2")[5], size=1.5) +
-  theme_bw() +
-  labs(y = "Log Odds of Risky Decision") +
-  ylim(-6,6)
-
-pEV_gain_loss = ggplot() + geom_line(aes_string(x = 0:5, y = (1.226671+(c(0:5)*0.878650))), color = brewer.pal(n = 8, name = "Set2")[3], size=1.5) +
-  geom_line(aes_string(x = 0:5, y = ((1.226671-.169318)+(c(0:5)*(.878650-.516078)))), color = brewer.pal(n = 8, name = "Set2")[5], size=1.5) +
-  geom_line(aes_string(x = -5:0, y = (-.731316+(c(-5:0)*0.748608))), color = brewer.pal(n = 8, name = "Dark2")[3], size=1.5) +
-  geom_line(aes_string(x = -5:0, y = ((-.731316+.148945)+(c(-5:0)*(.748608-.522223)))), color = brewer.pal(n = 8, name = "Dark2")[5], size=1.5) +
-  theme_bw() +
-  labs(y = "Log Odds of Risky Decision", x = "EV") +
-  ylim(-6,6)
-
-### Model 2 - Interrogating mechanism by following up with prospect theory
-
-#initList = list(list(c(0,5,0,5,0,12),c(8,8,10)),
-#                list(c(0,10,0,10,0,15),c(12,12,15)),
-#                list(c(0,10,0,10,0,25),c(15,15,20)))
-
+#define list of the three different grids - first vector are pairs of bounds for each of the three PT parameters (rho, lambda, mu), second vector is n bins for the grid
 initList = list(list(c(0,2,0,4.5,1,8),c(8,8,10)),
                 list(c(0,2.5,0,5,.5,10),c(12,12,15)),
                 list(c(0,2.5,0,5,.5,15),c(15,15,20)))
 
-
+#define a dataframe that will ultimately hold the parameter estimates for each optimization (3 optimizations, each with a diff start val), the convergence code, how many iterations it took, and the final likelihood estimate
 outParamsPT = data.frame(ID = L2Dat$ID, 
                          rho_init1 = rep(NA,length(L2Dat$ID)),
                          lambda_init1 = rep(NA,length(L2Dat$ID)),
                          mu_init1 = rep(NA,length(L2Dat$ID)),
-                         conv_init1 = rep(NA, length(L2Dat$ID)), 
-                         count_init1 = rep(NA, length(L2Dat$ID)), 
-                         lik_init1 = rep(NA, length(L2Dat$ID)), 
+                         conv_init1 = rep(NA, length(L2Dat$ID)), #convergence code for the first optimization (i.e., with first set of starting values)
+                         count_init1 = rep(NA, length(L2Dat$ID)), #number of iterations it took optim to converge with this set of starting values
+                         lik_init1 = rep(NA, length(L2Dat$ID)), #value of the likelihood function with this set of starting values
                          rho_init2 = rep(NA,length(L2Dat$ID)),
                          lambda_init2 = rep(NA,length(L2Dat$ID)),
                          mu_init2 = rep(NA, length(L2Dat$ID)),
@@ -348,9 +286,8 @@ outParamsPT = data.frame(ID = L2Dat$ID,
                          count_init3 = rep(NA, length(L2Dat$ID)), 
                          lik_init3 = rep(NA, length(L2Dat$ID)),
                          stringsAsFactors = FALSE)
-#gbound = c(0,10,0,10,0,15)# c(0, 5, 0, 5, 0, 15)
-#gbin = c(12,12,15)# c(8, 8, 10)
-obound = c(2.5,5,15) #c(10,10,35)
+
+obound = c(2.5,5,15) #specify the upper bound we're going to use in optim
 
 
 for (sub in outParamsPT$ID) {
