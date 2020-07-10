@@ -251,7 +251,7 @@ t = arrangeGrob(p1, p1loop, p2, p2loop, nrow = 2, ncol=2)
 ggsave(file.path("C:", "Users", "jguas", "Documents", "Publications & Posters", "Papers", "2020", "SB_Cups", "NHB", "ran_fix_logit_prob.png"), t, dpi = 900, width = 10, height = 6.67, units = c("in"))
 
 #########
-## Part 1 of analysis strategy -- computational modeling
+## Part 2 of analysis strategy -- computational modeling
 #########
 
 ## Start with prospect theory (PT)
@@ -299,8 +299,9 @@ for (sub in outParamsPT$ID) {
     
       gbound = initList[[i]][[1]];gbin = initList[[i]][[2]] #assign the bounds and bin numbers to separate variables
     
-      ptOut = ptMod(rawDat, gbound, gbin, obound, 0) #
+      ptOut = ptMod(rawDat, gbound, gbin, obound, 0) #fit the prospect theory model
       
+      #assign output to dataframe (probably a more efficient way to do this)
       outParamsPT[outParamsPT$ID == sub, paste('rho_init', as.character(i), sep="")] = ptOut[[1]]
       outParamsPT[outParamsPT$ID == sub, paste('lambda_init', as.character(i), sep="")] = ptOut[[2]]
       outParamsPT[outParamsPT$ID == sub, paste('mu_init', as.character(i), sep="")] = ptOut[[3]]
@@ -313,10 +314,12 @@ for (sub in outParamsPT$ID) {
   
 }
 
+#Set any values that didn't converge to be missing
 outParamsPT[outParamsPT$conv_init1>0,c('rho_init1', 'lambda_init1', 'mu_init1')] = NA
 outParamsPT[outParamsPT$conv_init2>0,c('rho_init2', 'lambda_init2', 'mu_init2')] = NA
 outParamsPT[outParamsPT$conv_init3>0,c('rho_init3', 'lambda_init3', 'mu_init3')] = NA
 
+#Even if optim said it converged I'm going to count values right at the boundary as not converging
 outParamsPT$lambda_init1[which(outParamsPT$lambda_init1==10)] = NA
 outParamsPT$lambda_init2[which(outParamsPT$lambda_init2==10)] = NA
 outParamsPT$lambda_init3[which(outParamsPT$lambda_init3==10)] = NA
@@ -337,35 +340,26 @@ outParamsPT$mu_init1[which(outParamsPT$mu_init1>9.9)] = NA
 outParamsPT$mu_init2[which(outParamsPT$mu_init2>9.9)] = NA
 outParamsPT$mu_init3[which(outParamsPT$mu_init3>9.9)] = NA
 
-
+#Take only the data we need (subject ID, parameter estimates (averaged over the three sets))
 outConv = data.frame(ID = outParamsPT$ID,
                      rho = rowMeans(as.matrix(outParamsPT[,c('rho_init1', 'rho_init2', 'rho_init3')]), na.rm = TRUE),
                      lambda = rowMeans(as.matrix(outParamsPT[,c('lambda_init1', 'lambda_init2', 'lambda_init3')]), na.rm = TRUE), 
                      mu = rowMeans(as.matrix(outParamsPT[,c("mu_init1", "mu_init2", "mu_init3")]), na.rm = TRUE),
                      stringsAsFactors = FALSE)
 
-
-
-## Need to run test on params (PI v Comp, correlate with age, etc.)
-compDat = inner_join(outConv, L2Dat)
-t.test(compDat$rho ~ compDat$PI)
-t.test(compDat$lambda ~ compDat$PI)
-t.test(log(compDat$lambda) ~ compDat$PI)
+## Now analyze prospect theory parameters
+compDat = inner_join(outConv, L2Dat) #join the computational modeling data with the other data
+t.test(compDat$rho ~ compDat$PI) #independent samples t-tests for all computational parameters
+t.test(log(compDat$lambda) ~ compDat$PI) #earlier versions of this script also peeped differences based on age or sex for exploratory puposes, removed here for clarity
 t.test(log(compDat$mu) ~ compDat$PI)
-t.test(compDat$rho ~ compDat$Sex)
-t.test(compDat$lambda ~ compDat$Sex)
-cor.test(compDat$rho, compDat$Age)
-cor.test(compDat$lambda, compDat$Age)
 
+#testing effect of ELA on these parameters while adjusting for covariates
 rhoMod1 = lm(rho ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 lambdaMod1 = lm(log(lambda) ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 muMod1 = lm(log(mu) ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 
-
-plot(compDat$Age, log(compDat$lambda), pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-
-#use imputed data
+## Now impute the missing values and re-analyze
+#Here we're using group, gender (labeled as sex here due to an earlier confusion), age, dospert scores and WASI-II scores
 impRho = imputeKNN(compDat[,c('rho', 'PI', 'Sex', 'Age', 'DOSPERT', 'IQ_percentile')], 'rho', 5)
 compDat$impRho = impRho
 impLambda = imputeKNN(compDat[,c('lambda', 'PI', 'Sex', 'Age', 'DOSPERT', 'IQ_percentile')], 'lambda', 5)
@@ -373,6 +367,7 @@ compDat$impLambda = impLambda
 impMu = imputeKNN(compDat[,c('mu', 'PI', 'Sex', 'Age', 'DOSPERT', 'IQ_percentile')], 'mu', 5)
 compDat$impMu = impMu
 
+#rerun the analyses (t-tests and regression analyses)
 t.test(compDat$impRho ~ compDat$PI)
 t.test(log(compDat$impLambda) ~ compDat$PI)
 t.test(log(compDat$impMu) ~ compDat$PI)
@@ -381,26 +376,17 @@ impRhoMod = lm(impRho ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 impLambdaMod = lm(log(impLambda) ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 impMuMod = lm(log(impMu) ~ PI + Age + Sex + IQ_percentile, dat = compDat)
 
+## Now we're going to do the target model (TM)
+## Same workflow as before
 
-
-
-plot(compDat$Age, log(compDat$impLambda), pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-plot(compDat$Age, compDat$impLambda, pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-plot(compDat$Age, compDat$impRho, pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-plot(compDat$Age, log(compDat$impMu), pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-
-
-
-### Model 3 - Interrogating mechanism by following up with a target model
+#list of conditions for grid searches for initial parameters
 initList = list(list(c(0,2.5,1,8),c(8,10)),
                 list(c(0,3,.5,10),c(12,15)),
                 list(c(0,3,.5,12),c(15,20)))
 
-
+#notably, we need to re-estimate a mu (choice consistency) parameter for this model as well. I suppose we could have used the one from PT, but that seemed inappropriate here
+#but we only care about tau right now. 
+#dataframe to hold our output. Again, we're only including tau here (i.e., we're estimating mu, but not doing anything more with it)
 outParamsTM = data.frame(ID = L2Dat$ID, 
                          tau_init1 = rep(NA,length(L2Dat$ID)),
                          conv_init1 = rep(NA, length(L2Dat$ID)), 
@@ -410,26 +396,28 @@ outParamsTM = data.frame(ID = L2Dat$ID,
                          conv_init2 = rep(NA, length(L2Dat$ID)), 
                          count_init2 = rep(NA, length(L2Dat$ID)), 
                          lik_init2 = rep(NA, length(L2Dat$ID)),
-                         tu_init3 = rep(NA,length(L2Dat$ID)),
+                         tau_init3 = rep(NA,length(L2Dat$ID)),
                          conv_init3 = rep(NA, length(L2Dat$ID)), 
                          count_init3 = rep(NA, length(L2Dat$ID)), 
                          lik_init3 = rep(NA, length(L2Dat$ID)),
                          stringsAsFactors = FALSE)
-#gbound = c(0,10,0,10,0,15)# c(0, 5, 0, 5, 0, 15)
-#gbin = c(12,12,15)# c(8, 8, 10)
-obound = c(3,15) #c(10,10,35)
 
+obound = c(3,15) #upper bounds for optim, but again, as before, not needed after the 'hack' I mentioned above
 
+#Loop over subjects, fit the TM, and save the parameter estimate of tau
 for (sub in outParamsTM$ID) {
   
   inDat = read_csv(sprintf("%s/%s/wave1/Lab_session/Clean/%s_CupsSelf.csv", sbPath, sub, sub))
   
   for (i in 1:length(initList)) {
     
+    #same deal as before, set up conditions for our grid searches
     gbound = initList[[i]][[1]];gbin = initList[[i]][[2]]
     
+    #fit the model
     tmOut = tmMod(inDat, gbound, gbin, obound, 0)
     
+    #save what we need (similar values as before)
     outParamsTM[outParamsTM$ID == sub, paste('tau_init', as.character(i), sep="")] = tmOut[[1]]
     outParamsTM[outParamsTM$ID == sub, paste('conv_init', as.character(i), sep="")] = tmOut[[4]]
     outParamsTM[outParamsTM$ID == sub, paste('count_init', as.character(i), sep="")] = tmOut[[3]][1]
@@ -440,26 +428,29 @@ for (sub in outParamsTM$ID) {
   
 }
 
+#Set any values that didn't converge to be missing
+outParamsTM[outParamsTM$conv_init1>0,c('tau_init1')] = NA
+outParamsTM[outParamsTM$conv_init2>0,c('rho_init2')] = NA
+outParamsTM[outParamsTM$conv_init3>0,c('rho_init3')] = NA
+
+#same deal as before -- any implausible low tau values are treated as missing (non-converged)
 outParamsTM$tau_init1[outParamsTM$tau_init1 < .01] = NA
 outParamsTM$tau_init2[outParamsTM$tau_init2 < .01] = NA
 outParamsTM$tau_init3[outParamsTM$tau_init3 < .01] = NA
 
+#take mean of the three parameter estimates
 outConv = data.frame(ID = outParamsTM$ID,
                      tau = rowMeans(as.matrix(outParamsTM[,c('tau_init1', 'tau_init2', 'tau_init3')]), na.rm = TRUE), 
                      stringsAsFactors = FALSE)
 
+## Run statistical tests
 compDat = inner_join(outConv, L2Dat)
 t.test(log(compDat$tau) ~ compDat$PI)
 
 
 tauMod1 = lm(log(tau) ~ PI+Age+Sex+IQ_percentile, dat = compDat)
 
-
-plot(compDat$Age, compDat$tau, pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-
-##impute the data
-
+## Impute the data and re-run analyses
 impTau = imputeKNN(compDat[,c('tau', 'PI', 'Sex', 'Age', 'DOSPERT', 'IQ_percentile')], 'tau', 5)
 compDat$impTau = impTau
 t.test(log(compDat$impTau) ~ compDat$PI)
@@ -467,25 +458,12 @@ t.test(log(compDat$impTau) ~ compDat$PI)
 impTauMod1 = lm(log(impTau) ~ PI+Age+Sex+IQ_percentile, dat = compDat)
 
 
-plot(compDat$Age, log(compDat$impTau), pch=21, 
-     bg=c("red","blue")[unclass(as.factor(compDat$PI))])
+#########
+## Analyze DOSPERT data (self-reported 'real world' risk taking)
+#########
 
-## Model 4 -- examining self-reported risk-taking
-plot(compDat$Age, compDat$DOSPERT, pch=21, 
-          bg=c("red","blue")[unclass(as.factor(compDat$PI))])
-compDat$cAge = compDat$Age - mean(compDat$Age)
-compDat$cAgeSq = compDat$cAge * compDat$cAge
-
-hist(compDat$DOSPERT)
+#independent samples t test
 t.test(compDat$DOSPERT ~ compDat$PI)
-t.test(compDat$DOSPERT ~ compDat$Sex)
-cor.test(compDat$DOSPERT, compDat$Age)
-mod1 = lm(DOSPERT ~ Age + PI, data = compDat)
-mod2 = lm(DOSPERT ~ Age + PI + Sex, data = compDat)
-mod3 = lm(DOSPERT ~ Age*PI, data = compDat)
 
-mod5 = lm(DOSPERT ~ cAge + cAgeSq, data = compDat)
-mod6 = lm(DOSPERT ~ cAge + cAgeSq + PI, data = compDat)
-mod7 = lm(DOSPERT ~ Age + IQ_percentile, data = L2Dat)
-
+#adjust based on covariates
 dosMod = lm(DOSPERT ~ Age + PI + Sex + IQ_percentile, data = compDat)

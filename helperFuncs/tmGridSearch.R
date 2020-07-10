@@ -1,13 +1,15 @@
+#################################################################
+## function to estimate target model parameters using grid search
 tmGridSearch = function(data, bound, bin) {
   
-  bounds = matrix(bound, length(bound)/2, 2, byrow = TRUE) #order of pairs is rho, lambda, mu
-  nBin = matrix(bin, 1, 2) # same as above, alpha, beta, lambda self, lambda other
-  nParam = dim(bounds)[1] #number of parameters (should always be three)
-  p = matrix(list(),1,nParam)
-  loglik = array(NaN, dim=c(nBin[1], nBin[2]))
+  bounds = matrix(bound, length(bound)/2, 2, byrow = TRUE) #order of pairs is tau and beta
+  nBin = matrix(bin, 1, 2) # same as above, tau, beta
+  nParam = dim(bounds)[1] #number of parameters (should always be two for this model)
+  p = matrix(list(),1,nParam) #matrix describing probabilities of safe v risky decision for each trial given the parameter
+  loglik = array(NaN, dim=c(nBin[1], nBin[2])) #set our grid
   
   for (i in 1:nParam) {
-    
+    #create linearly spaced intervals (equal to the number of bins) for potential parameter values
     range = linspace(bounds[i,1],bounds[i,2],nBin[i]+1)
     p[[1,i]] = range[2:length(range)]
     
@@ -25,8 +27,8 @@ tmGridSearch = function(data, bound, bin) {
     }
 
   
-  loglik = (loglik - mean(loglik)/std(loglik))
-  lik = exp(loglik)
+  loglik = (loglik - mean(loglik)/std(loglik)) #standardize
+  lik = exp(loglik) #make them likelihoods
   
   tmpTau = rowSums(lik) #sum across other parameter's for a given parameter's likelihood
   tmpBeta = colSums(lik) #needed to compute marginal likelihood below

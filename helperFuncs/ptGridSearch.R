@@ -6,7 +6,7 @@ ptGridSearch = function(data, bound, bin) {
   #output(s): parameter estimates for rho (risk aversion), lambda (loss aversion), mu (choice consistency), to be used as starting value
   
   bounds = matrix(bound, length(bound)/2, 2, byrow = TRUE) #order of pairs is rho, lambda, mu
-  nBin = matrix(bin, 1, 3) # same as above, alpha, beta, lambda self, lambda other
+  nBin = matrix(bin, 1, 3) # same as above, rho, lambda, mu
   nParam = dim(bounds)[1] #number of parameters (should always be three)
   p = matrix(list(),1,nParam) #matrix describing probabilities of safe v risky decision for each trial given the parameter
   loglik = array(NaN, dim=c(nBin[1], nBin[2], nBin[3])) #set our grid

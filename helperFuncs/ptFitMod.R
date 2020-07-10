@@ -2,7 +2,7 @@
 ## prospect theory model fitting function
 ptFitMod = function(params, data) {
   
-  #input(s): parameters -- rho (risk aversion), lambda (loss aversion), mu (choice consistency) -- and 
+  #input(s): parameters -- rho (risk aversion), lambda (loss aversion), mu (choice consistency) -- and data
   #output(s): parameter estimates for rho (risk aversion), lambda (loss aversion), mu (choice consistency), # of iterations it took to converge, the error message, and the value of the likelihood function
   
   rho = params[1] #set rho

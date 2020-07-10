@@ -11,7 +11,7 @@ ptMod = function(inDat, gbound, gbin, obound, grid) {
   
   dat = ptReformatCups(inDat) #reformat the cups data to get it just the way we need it (decisions, risk probability, nonzero outcome amount)
   
-  fun <- function(pm) ptFitMod(pm, data=dat) #create the function handle 
+  fun = function(pm) ptFitMod(pm, data=dat) #create the function handle 
   
   if (grid == 0) { 
   
