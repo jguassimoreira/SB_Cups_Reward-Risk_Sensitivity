@@ -1,5 +1,5 @@
-#### 3D array sum for initial grid search ##############################################################
-########################################################################################################
+#######################################
+## 3D array sum for initial grid search
 colSumArray3 <- function(inArray) {
   
   #Sum of the columns across all dimensions in a 3D array, i.e., collapse across

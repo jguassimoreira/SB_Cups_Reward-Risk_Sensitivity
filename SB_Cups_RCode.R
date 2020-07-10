@@ -287,19 +287,19 @@ outParamsPT = data.frame(ID = L2Dat$ID,
                          lik_init3 = rep(NA, length(L2Dat$ID)),
                          stringsAsFactors = FALSE)
 
-obound = c(2.5,5,15) #specify the upper bound we're going to use in optim
+#obound = c(2.5,5,15) #specify the upper bound we're going to use in optim -- not needed after I tweaked to apply a constraint a different way
 
-
+#Loop over subjects to read in their raw cups data
 for (sub in outParamsPT$ID) {
   
-  rawDat = read_csv(sprintf("%s/%s/wave1/Lab_session/Raw/%s_CupsSelf_Raw.csv", sbPath, sub, sub))
-  rawDat = rawDat[!is.na(rawDat$cueResp.corr),]
+  rawDat = read_csv(sprintf("%s/%s/wave1/Lab_session/Raw/%s_CupsSelf_Raw.csv", sbPath, sub, sub)) #read in data
+  rawDat = rawDat[!is.na(rawDat$cueResp.corr),] #remove NA rows from the raw data
   
-  for (i in 1:length(initList)) {
+  for (i in 1:length(initList)) { #loop through the initList (i.e., run the grid search and then optimization for each set of grids)
     
-      gbound = initList[[i]][[1]];gbin = initList[[i]][[2]]
+      gbound = initList[[i]][[1]];gbin = initList[[i]][[2]] #assign the bounds and bin numbers to separate variables
     
-      ptOut = ptMod(rawDat, gbound, gbin, obound, 0)
+      ptOut = ptMod(rawDat, gbound, gbin, obound, 0) #
       
       outParamsPT[outParamsPT$ID == sub, paste('rho_init', as.character(i), sep="")] = ptOut[[1]]
       outParamsPT[outParamsPT$ID == sub, paste('lambda_init', as.character(i), sep="")] = ptOut[[2]]
