@@ -1,3 +1,11 @@
+###########################################################################
+######################## Analysis code #################################### 
+########### JF Guassi Moreira (jguassimoreira[at]ucla[dot]edu) ############
+####################### Spring/Summer 2020 ################################
+
+#########
+## Load the libraries we'll need
+#########
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -9,63 +17,66 @@ library(ggplot2)
 library(plyr)
 library(gridExtra)
 
-##Import helper functions
-scriptPath = file.path("~", "Documents", "Scripts", "R", "helperFuncs")
-sbPath = file.path("P:", "Social_Behavior_(SB_study)", "Data", "Behavioral_data")
-file.sources = Sys.glob(file.path(sprintf("%s", scriptPath), "*.R"))
-sapply(file.sources,FUN=source)
+#########
+## Import helper functions, set path to data
+#########
+scriptPath = file.path("~", "Documents", "Scripts", "R", "helperFuncs") #path to helper funcs
+file.sources = Sys.glob(file.path(sprintf("%s", scriptPath), "*.R")) #Construct paths to helper funcs, save in vector
+sapply(file.sources,FUN=source) #use sapply to source each file path in the helper func vector
+sbPath = file.path("P:", "Social_Behavior_(SB_study)", "Data", "Behavioral_data") #set path to data on SANDLab server
 
 
-### Model 1 - Modeling risky behaviors on the cups task as a function of trial-level variables
-### and between subject predictors
+#########
+## Load in the data
+#########
 
-#Get path to subjects' data
-subList = Sys.glob("P:/Social_Behavior_(SB_study)/Data/Behavioral_data/SB*/wave1/Lab_session/Clean/*_CupsSelf.csv")
+## Note: If you are downloading this script from github/osf, the data have already compiled and placed into a .csv on the osf project page, so you could skip this chunk and load the data in yourself
 
-#Compile Cups Dat (Level 1, trial level)
-cupsDat = getCupsDat(subList)
-cupsDat = cupsDat[-1,]
+subList = Sys.glob("P:/Social_Behavior_(SB_study)/Data/Behavioral_data/SB*/wave1/Lab_session/Clean/*_CupsSelf.csv") #Get path to each subjects' cups data
 
-#Get Level 2 (individual level) data
-L2Dat = getL2Dat("P:/Social_Behavior_(SB_study)/Data/Study_logs/SB_group_list.csv")
+cupsDat = getCupsDat(subList) #Compile Cups data (Level 1, i.e., trial level), uses helper func
+cupsDat = cupsDat[-1,] #The first row is a bunch of 999 placeholders because I coded this like a doofus the first time around
 
-#merge
-allDat = inner_join(L2Dat, cupsDat)
+L2Dat = getL2Dat("P:/Social_Behavior_(SB_study)/Data/Study_logs/SB_group_list.csv") #Load the level two (i.e., between subjects) data, uses helper func (though it's not really necessary)
 
-#grand mean center EV(return), SD(risk), age, and IQ
-allDat$SD = allDat$SD - mean(allDat$SD); allDat$EV = allDat$EV - mean(allDat$EV)
-allDat$Age = allDat$Age - mean(allDat$Age)
-allDat$IQ_percentile = allDat$IQ_percentile - mean(allDat$IQ_percentile)
-allDat$DOSPERT = allDat$DOSPERT - mean(allDat$DOSPERT)
+allDat = inner_join(L2Dat, cupsDat) #merge the trial- and subject-level data
 
-#run the models
-mod1 <- glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod2 <- glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod3 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod4 <- glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile + (1+EV|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod5 <- glmer(Decision ~ EV*PI + SD*PI*TrialType  + Age + Sex + IQ_percentile + (1+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+#########
+## Part 1 of analysis strategy -- multilevel logistic regression
+#########
 
-#Add DOSPERT into model 3
-mod3dos <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + DOSPERT + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+## First we need to do some grand mean centering
+allDat$EV = allDat$EV - mean(allDat$EV); allDat$SD = allDat$SD - mean(allDat$SD) #grand mean center EV (reward) and then SD (risk)
+allDat$Age = allDat$Age - mean(allDat$Age) #grand mean center age
+allDat$IQ_percentile = allDat$IQ_percentile - mean(allDat$IQ_percentile) #grand mean center IQ scores (obtained from the verbal and matrix reasoning subtests of the WASI-II)
+allDat$DOSPERT = allDat$DOSPERT - mean(allDat$DOSPERT) #grand mean center DOSPERT (domain specific risk taking scale), i.e., self-reports of 'real-world' risk-taking
 
+## run the main models reported in Table 2
+mod1 = glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 1 from Table 2
+mod2 = glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 2 from Table 2
+mod3 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 3 from Table 2
+mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile + (1+EV|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 4 from Table 2
 
-#Let's do some recentering the get some regions of significance
+## Additional/ancillary models 
+mod5 = glmer(Decision ~ EV*PI + SD*PI*TrialType  + Age + Sex + IQ_percentile + (1+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing 3 way interaction between group(PI), age, and risk (SD) -- as noted in the manuscript, it does not converge
+mod3dos = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + DOSPERT + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing whether DOSPERT scores were related to behavior on the Cups Task
+
+## Recentering EV and re-running model 3 to get a sense of where along the range of EV values there were significant group differences in risk-taking likelihoods
 rcDat_m5 = allDat; rcDat_m5$EV = rcDat_m5$EV - (-5) #recenter at minus 5 EV
 rcDat_m2 = allDat; rcDat_m2$EV = rcDat_m2$EV - (-2) #recenter at minus 2 EV
 rcDat_p2 = allDat; rcDat_p2$EV = rcDat_p2$EV - 2 #recenter at plus 2 EV
-rcDat_p5 = allDat; rcDat_p5$EV = rcDat_p5$EV - 5 #recenter at plust 5 EV
+rcDat_p5 = allDat; rcDat_p5$EV = rcDat_p5$EV - 5 #recenter at plus 5 EV
 
-mod3i_rcM5 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_m5, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000)))
-mod3i_rcM2 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_m2, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000)))
-mod3i_rcP2 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_p2, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000)))
-mod3i_rcP5 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_p5, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000)))
+mod3i_rcM5 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_m5, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000))) #EV centered at minus 5 
+mod3i_rcM2 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_m2, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000))) #EV centered at minus 2 
+mod3i_rcP2 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_p2, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000))) #EV centered at plus 2 
+mod3i_rcP5 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = rcDat_p5, family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 150000))) #EV centered at plus 5 
 
+## Running gain and loss trials separately to unpack the main effect of SD
+gainDat = inner_join(L2Dat, cupsDat); gainDat = gainDat[gainDat$EV > 0,] #gain trials
+lossDat = inner_join(L2Dat, cupsDat); lossDat = lossDat[lossDat$EV < 0,] #loss trials
 
-#Run with gain and loss trials separate
-
-gainDat = inner_join(L2Dat, cupsDat); gainDat = gainDat[gainDat$EV > 0,]
-lossDat = inner_join(L2Dat, cupsDat); lossDat = lossDat[lossDat$EV < 0,]
-
+#repeat grand mean centering within trial type
 gainDat$SD = gainDat$SD - mean(gainDat$SD); gainDat$EV = gainDat$EV - mean(gainDat$EV)
 gainDat$Age = gainDat$Age - mean(gainDat$Age)
 gainDat$IQ_percentile = gainDat$IQ_percentile - mean(gainDat$IQ_percentile)
@@ -74,30 +85,31 @@ lossDat$SD = lossDat$SD - mean(lossDat$SD); lossDat$EV = lossDat$EV - mean(lossD
 lossDat$Age = lossDat$Age - mean(lossDat$Age)
 lossDat$IQ_percentile = lossDat$IQ_percentile - mean(lossDat$IQ_percentile)
 
-gainMod1 <- glmer(Decision ~ EV + SD + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-lossMod1 <- glmer(Decision ~ EV + SD + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-gainMod2 <- glmer(Decision ~ EV + SD + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-lossMod2 <- glmer(Decision ~ EV + SD + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-gainMod3 <- glmer(Decision ~ EV*PI + SD*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-lossMod3 <- glmer(Decision ~ EV*PI + SD*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+#ran up to mod 3 separately, discovered the apparent differences in SD*PI interactions between gain and loss trials (don't over interpret this, since we couldn't formally evaluate for 3 way interaction in model 5)
+gainMod1 = glmer(Decision ~ EV + SD + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+lossMod1 = glmer(Decision ~ EV + SD + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+gainMod2 = glmer(Decision ~ EV + SD + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+lossMod2 = glmer(Decision ~ EV + SD + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+gainMod3 = glmer(Decision ~ EV*PI + SD*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = gainDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+lossMod3 = glmer(Decision ~ EV*PI + SD*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = lossDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
-#Run without SB334 (outlier)
-allDat_no334 = inner_join(L2Dat[-(L2Dat$ID=='SB334'),], cupsDat)
+## Remove outlier (became apparent when plotting random effects in Figure 3)
+allDat_noOutlier = inner_join(L2Dat[-(L2Dat$ID=='8366515152'),], cupsDat)
 
-allDat_no334$SD = allDat_no334$SD - mean(allDat_no334$SD); allDat_no334$EV = allDat_no334$EV - mean(allDat_no334$EV)
-allDat_no334$Age = allDat_no334$Age - mean(allDat_no334$Age)
-allDat_no334$IQ_percentile = allDat_no334$IQ_percentile - mean(allDat_no334$IQ_percentile)
+#grand mean center again
+allDat_noOutlier$SD = allDat_noOutlier$SD - mean(allDat_noOutlier$SD); allDat_noOutlier$EV = allDat_noOutlier$EV - mean(allDat_noOutlier$EV)
+allDat_noOutlier$Age = allDat_noOutlier$Age - mean(allDat_noOutlier$Age)
+allDat_noOutlier$IQ_percentile = allDat_noOutlier$IQ_percentile - mean(allDat_noOutlier$IQ_percentile)
 
 #run the models
-mod1 <- glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod2 <- glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + (1+EV+SD+TrialType|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod3 <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + (1+EV+SD+TrialType|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod4 <- glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + (1+EV+SD|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod1 = glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod2 = glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + IQ_percentile + (1+EV+SD+TrialType|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod3 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD+TrialType|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile +  (1+EV+SD|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
-mod2i <- glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod3i <- glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-mod4i <- glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile + (1+EV|ID), data = allDat_no334, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-
+#########
+## Plot results from part of the analysis strategy
+#########
 
 
 ##Make some plots
