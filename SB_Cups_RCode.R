@@ -50,6 +50,8 @@ allDat$EV = allDat$EV - mean(allDat$EV); allDat$SD = allDat$SD - mean(allDat$SD)
 allDat$Age = allDat$Age - mean(allDat$Age) #grand mean center age
 allDat$IQ_percentile = allDat$IQ_percentile - mean(allDat$IQ_percentile) #grand mean center IQ scores (obtained from the verbal and matrix reasoning subtests of the WASI-II)
 allDat$DOSPERT = allDat$DOSPERT - mean(allDat$DOSPERT) #grand mean center DOSPERT (domain specific risk taking scale), i.e., self-reports of 'real-world' risk-taking
+allDat$TrialNum = allDat$TrialNum - mean(allDat$TrialNum) #grand mean center trial number for an additional ancillary/supplementary analysis
+
 
 ## run the main models reported in Table 2
 mod1 = glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 1 from Table 2
@@ -60,6 +62,8 @@ mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialTy
 ## Additional/ancillary models 
 mod5 = glmer(Decision ~ EV*PI + SD*PI*TrialType  + Age + Sex + IQ_percentile + (1+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing 3 way interaction between group(PI), age, and risk (SD) -- as noted in the manuscript, it does not converge
 mod3dos = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + DOSPERT + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing whether DOSPERT scores were related to behavior on the Cups Task
+mod3tn = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + TrialNum + (1+EV|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Follow up model 3 by adding trial number (model won't converge with both EV and SD as random effects)
+
 
 ## Recentering EV and re-running model 3 to get a sense of where along the range of EV values there were significant group differences in risk-taking likelihoods
 rcDat_m5 = allDat; rcDat_m5$EV = rcDat_m5$EV - (-5) #recenter at minus 5 EV
@@ -106,6 +110,17 @@ mod1 = glmer(Decision ~ EV + SD + TrialType + (1+EV+SD+TrialType|ID), data = all
 mod2 = glmer(Decision ~ EV + SD + TrialType + PI + Age + Sex + IQ_percentile + (1+EV+SD+TrialType|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 mod3 = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + (1+EV+SD+TrialType|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialType*Age + Sex + IQ_percentile +  (1+EV+SD|ID), data = allDat_noOutlier, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+## Do a few supplementary/ancillary analyses with only the PI subjects
+piDat = inner_join(L2Dat, cupsDat); piDat = piDat[piDat$PI == 1,]
+piDat$EV = piDat$EV - mean(piDat$EV); piDat$SD = piDat$SD - mean(piDat$SD) #grand mean center EV (reward) and then SD (risk)
+piDat$Age = piDat$Age - mean(piDat$Age) #grand mean center age
+piDat$IQ_percentile = piDat$IQ_percentile - mean(piDat$IQ_percentile) #grand mean center IQ scores (obtained from the verbal and matrix reasoning subtests of the WASI-II)
+piDat$IPPA_Parent = piDat$IPPA_Parent - mean(piDat$IPPA_Parent, na.rm = T) #grand mean center IPPA parent variable, also needed for ancillary/supplementary analysis
+piDat$timePI = piDat$timePI - mean(piDat$timePI, na.rm = T) #grand mean center time spent in institutionalization variable for PI participants
+
+piModIPPA = glmer(Decision ~ EV*IPPA_Parent + SD*IPPA_Parent + TrialType + Age + Sex + IQ_percentile + (1+EV|ID), data = piDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #does relationship quality buffer effect of EV and SD? 
+piModtimePI = glmer(Decision ~ EV*timePI + SD*timePI + TrialType + Age + Sex + IQ_percentile + (1+EV+SD|ID), data = piDat, family = binomial, control = glmerControl(optimizer = "bobyqa"))  #does time spent in institutionalization buffer effect of EV and SD? 
 
 #########
 ## Plot results from this part of the analysis strategy
@@ -467,3 +482,7 @@ t.test(compDat$DOSPERT ~ compDat$PI)
 
 #adjust based on covariates
 dosMod = lm(DOSPERT ~ Age + PI + Sex + IQ_percentile, data = compDat)
+
+#########
+## Additional supplemental analyses suggested by reviewers
+#########
