@@ -63,6 +63,7 @@ mod4 = glmer(Decision ~ EV*PI + EV*Age + SD*PI + SD*Age + TrialType*PI + TrialTy
 mod5 = glmer(Decision ~ EV*PI + SD*PI*TrialType  + Age + Sex + IQ_percentile + (1+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing 3 way interaction between group(PI), age, and risk (SD) -- as noted in the manuscript, it does not converge
 mod3dos = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + DOSPERT + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #additional model testing whether DOSPERT scores were related to behavior on the Cups Task
 mod3tn = glmer(Decision ~ EV*PI + SD*PI + TrialType*PI + Age + Sex + IQ_percentile + TrialNum + (1+EV|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Follow up model 3 by adding trial number (model won't converge with both EV and SD as random effects)
+mod3iq = glmer(Decision ~ EV + SD + TrialType + Age + Sex + IQ_percentile*PI + (1+EV+SD|ID), data = allDat, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Model 3 from Table 2
 
 
 ## Recentering EV and re-running model 3 to get a sense of where along the range of EV values there were significant group differences in risk-taking likelihoods
